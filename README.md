@@ -34,8 +34,14 @@ Every resource has list, stats, get, get-by-legacy-id, create, patch and delete
 uv venv .venv && uv pip install --python .venv/bin/python -e ".[dev]"
 .venv/bin/pytest -q
 NEON_API_KEY=... .venv/bin/goals-db provision
-npm install && railway config apply && railway up --ci --service goals-api
+npm install && railway config apply   # service settings only; code deploys from GitHub (below)
 ```
+
+Deploys (CD, since 2026-10-18): `goals-api` and `goals-publisher` are connected to this
+repository's `main` with Railway's Wait for CI (`checkSuites`). A merge to `main` deploys only
+after the CI and security checks pass; a failing check leaves production on the previous
+deployment. Roll back by redeploying an earlier deployment in Railway. `railway up` is no
+longer used.
 
 Railway variables: `SENTRY_DSN` (error reporting; unset = off, see
 `src/cellkit/_sentry.py`), `GOALS_DB_MODE=hosted`, `GOALS_DB_URL_API`,
