@@ -37,5 +37,6 @@ NEON_API_KEY=... .venv/bin/goals-db provision
 npm install && railway config apply && railway up --ci --service goals-api
 ```
 
-Railway variables: `GOALS_DB_MODE=hosted`, `GOALS_DB_URL_API`,
+Railway variables: `SENTRY_DSN` (error reporting; unset = off, see
+`src/cellkit/_sentry.py`), `GOALS_DB_MODE=hosted`, `GOALS_DB_URL_API`,
 `GOALS_JWT_PUBLIC_KEY_PEM`, `GOALS_JWT_ISSUER`, `EMPIRE_PLATFORM_URL`, and for the publisher `GOALS_DB_URL_PUBLISHER` and `GOALS_PUBLISHER_TOKEN`.
