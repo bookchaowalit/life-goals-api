@@ -45,6 +45,7 @@ resources:
     plural: goal-metrics
     filters: [goal_id, status, metric_type]
     unique: [[goal_id, metric_key]]
+    ranges: [[period_start, period_end]]
     fields:
       goal_id: {type: ref, to: goal, required: true}
       metric_key: {type: text, required: true, max_length: 200}
@@ -84,6 +85,7 @@ resources:
     table: productivity_goals
     plural: productivity-goals
     filters: [goal_type, is_active]
+    ranges: [[period_start, period_end]]
     fields:
       name: {type: text, required: true, max_length: 500}
       goal_type: {type: enum, required: true, values: [daily_completions, weekly_completions, daily_time, weekly_time, streak]}
