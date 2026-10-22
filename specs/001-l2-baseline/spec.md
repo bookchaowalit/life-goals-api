@@ -96,6 +96,13 @@ Big Loop Plan Wave 2 (solo-empire `repository-catalog/roadmaps/BIG-LOOP-PLAN-202
 - **Then** the request still succeeds (the cron sweep retries) and the error is passed to Sentry `capture()`; before the fix it was only logged
 - **Test:** `tests/test_contract.py::test_inline_publish_failure_is_reported` · level: integration (API + throwaway PostgreSQL)
 
+### AC-10 — Numbers fit their columns
+
+- **Given** an int field (PostgreSQL integer) or a real field
+- **When** a client sends 2**31, or NaN / Infinity / 1e400 as raw JSON
+- **Then** the API answers 422 naming the field (before: a 500 from PostgreSQL, or the value silently stored as null)
+- **Test:** `tests/test_contract.py::test_numbers_fit_their_columns` · level: integration (API + throwaway PostgreSQL)
+
 ## 4. Interfaces and data
 
 | Interface | Change | Contract |
@@ -140,6 +147,7 @@ Big Loop Plan Wave 2 (solo-empire `repository-catalog/roadmaps/BIG-LOOP-PLAN-202
 | AC-07 | `tests/test_goals_defaults.py::test_an_imported_goal_keeps_its_old_id_and_tasks_can_point_at_it` | characterization (behaviour already present; passed on first run) | CI run of the pushed tip | none |
 | AC-08 | `tests/test_goals_queries.py::test_tasks_are_listed_by_sort_order_then_id` | characterization (behaviour already present; passed on first run) | CI run of the pushed tip | none |
 | AC-09 | `tests/test_contract.py::test_inline_publish_failure_is_reported` | 35cf9e7 (origin/main) + this test only · `.venv/bin/pytest -q -k inline_publish tests/test_contract.py` · `assert captured` → `AssertionError` (nothing captured) | CI run of the pushed tip | none |
+| AC-10 | `tests/test_contract.py::test_numbers_fit_their_columns` | 1f1cefc · `.venv/bin/pytest -q -k numbers_fit` · `psycopg.errors.NumericValueOutOfRange: integer out of range` | CI run of the pushed tip | none |
 
 ## 7. Risks and open questions
 
