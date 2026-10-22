@@ -177,11 +177,6 @@ def test_metric_values_must_be_numbers(client, owner):
     )
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="cellkit accepts NaN and Infinity for a real field: the row is stored but read back "
-    "with target_value null, so a required target comes back empty (201 instead of 422)",
-)
 @pytest.mark.parametrize("not_a_number", ["NaN", "Infinity", "-Infinity"])
 def test_a_metric_target_that_is_not_a_finite_number_is_refused(
     client, owner, not_a_number

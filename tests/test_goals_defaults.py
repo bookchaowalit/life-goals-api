@@ -2,7 +2,6 @@
 
 from datetime import UTC, datetime
 
-import pytest
 from goals_helpers import (
     GOALS,
     MAPPINGS,
@@ -202,11 +201,6 @@ def test_old_timestamps_are_accepted_only_on_import(client, owner):
     assert kept == datetime(2024, 1, 2, 3, 4, 5, tzinfo=UTC)
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="cellkit app.write does not catch NumericValueOutOfRange: a priority above "
-    "2147483647 ends in a 500 instead of a 422",
-)
 def test_a_priority_above_the_integer_range_is_refused_not_a_server_error(
     client, owner
 ):
