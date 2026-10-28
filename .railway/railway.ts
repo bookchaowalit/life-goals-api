@@ -24,7 +24,7 @@ export default defineRailway(() => {
   const publisher = service("goals-publisher", {
     source: github,
     startCommand: "goals-publish",
-    deploy: { cronSchedule: "*/15 * * * *", restartPolicyType: "NEVER" },
+    deploy: { cronSchedule: "5 * * * *", restartPolicyType: "NEVER" },
   });
 
   return project("life-goals-api", {
