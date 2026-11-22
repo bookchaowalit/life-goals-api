@@ -9,6 +9,12 @@ resources:
     plural: goals
     graph: [title, status, type, category, domain]
     filters: [status, type, category, domain, priority]
+    # platform-empire SPEC-002: category becomes an in-domain set event (the enum stays until a goals spec).
+    catalog:
+      in-domain:
+        field: category
+        map: {tech: skills, business: work, life: unclassified, creative: aesthetics-rest, financial: finance, health: health}
+        default: unclassified
     fields:
       title: {type: text, required: true, max_length: 500}
       description: {type: text}
