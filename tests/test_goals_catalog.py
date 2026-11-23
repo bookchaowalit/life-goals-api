@@ -28,9 +28,11 @@ def test_category_maps_to_a_domain_on_create_and_change(client, owner, harness):
         ["empire:platform:domain:skills"],
         changed["version"],
     )
-    client.patch(
+    renamed = client.patch(
         f"/v1/goals/{goal['id']}", headers=owner, json={"title": "Ship it now"}
     )
+    assert renamed.status_code == 200, renamed.text
+    assert renamed.json()["title"] == "Ship it now"
     assert len(set_events(harness, goal["id"])) == 2  # only category changes emit
 
 
