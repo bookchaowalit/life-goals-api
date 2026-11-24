@@ -1,5 +1,7 @@
 """platform-empire SPEC-002: a goal's category reaches the graph as an in-domain set event."""
 
+from cellkit.publisher import publish_pending
+
 
 def set_events(harness, goal_id):
     rows = harness.superuser(
@@ -48,3 +50,56 @@ def test_every_category_has_a_domain(harness):
         "health": "health",
     }
     assert link.targets(None) == ["empire:platform:domain:unclassified"]
+
+
+def test_publisher_retries_then_delivers_the_set_event(
+    client, owner, harness, platform
+):
+    goal = client.post(
+        "/v1/goals", headers=owner, json={"title": "Run", "category": "health"}
+    ).json()
+    token = owner["Authorization"].removeprefix("Bearer ")
+    subject = f"empire:goals:goal:{goal['id']}"
+    publisher = harness.cell.role("publisher")
+    harness.superuser(
+        "UPDATE goals.outbox SET published_at = NULL, next_attempt_at = now() WHERE subject = %s RETURNING id",
+        (subject,),
+    )
+    platform.fail_publish = True
+    with harness.cluster.connect(publisher) as conn:
+        failed = publish_pending(conn, harness.cell.schema, platform, token)
+    assert failed["failed"] >= 1
+    assert failed["published"] == 0
+    [(attempts, error)] = harness.superuser(
+        "SELECT attempts, last_error FROM goals.outbox WHERE subject = %s AND type = 'goals.goal.linked'",
+        (subject,),
+    )
+    assert (attempts, error) == (1, "PlatformUnavailable")
+    platform.fail_publish = False
+    harness.superuser(
+        "UPDATE goals.outbox SET next_attempt_at = now() WHERE subject = %s RETURNING id",
+        (subject,),
+    )
+    with harness.cluster.connect(publisher) as conn:
+        delivered = publish_pending(conn, harness.cell.schema, platform, token)
+    assert delivered["failed"] == 0
+    [linked] = [
+        e
+        for e in platform.published
+        if e["subject"] == subject and e["type"] == "goals.goal.linked"
+    ]
+    assert linked["payload"]["targets"] == ["empire:platform:domain:health"]
+
+
+def test_platform_url_and_body_guards():
+    import httpx
+    import pytest
+    from cellkit import platform as kit_platform
+
+    assert kit_platform.checked_url("http://127.0.0.1:8000/") == "http://127.0.0.1:8000"
+    with pytest.raises(ValueError, match="https"):
+        kit_platform.checked_url("http://platform.example.com")
+    assert kit_platform._json_object(httpx.Response(200)) == {}
+    assert kit_platform._json_object(httpx.Response(200, content=b"not json")) == {}
+    assert kit_platform._json_object(httpx.Response(200, json=[1])) == {}
+    assert kit_platform._json_object(httpx.Response(200, json={"a": 1})) == {"a": 1}
