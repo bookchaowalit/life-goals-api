@@ -1,5 +1,7 @@
 """platform-empire SPEC-002: a goal's category reaches the graph as an in-domain set event."""
 
+from pathlib import Path
+
 from cellkit.publisher import publish_pending
 
 
@@ -103,3 +105,67 @@ def test_platform_url_and_body_guards():
     assert kit_platform._json_object(httpx.Response(200, content=b"not json")) == {}
     assert kit_platform._json_object(httpx.Response(200, json=[1])) == {}
     assert kit_platform._json_object(httpx.Response(200, json={"a": 1})) == {"a": 1}
+
+
+BACKFILL = (
+    Path(__file__).resolve().parents[1] / "migrations" / "0002_catalog_backfill.sql"
+)
+
+
+def test_backfill_queues_node_then_domain_set_at_the_goal_version(
+    client, owner, harness
+):
+    """Rollout step 4: goals written before the producer get a node event, then their set event."""
+    [link] = harness.cell.resource("goal").catalog
+    categories = ("tech", "business", "life", "creative", "financial", "health", None)
+    goals = {}
+    for category in categories:
+        body = {"title": f"Backfill {category}", "domain": "career"}
+        if category:
+            body["category"] = category
+        made = client.post("/v1/goals", headers=owner, json=body)
+        assert made.status_code == 201, made.text
+        goals[category] = made.json()
+    edited = client.patch(
+        f"/v1/goals/{goals['tech']['id']}", headers=owner, json={"status": "active"}
+    )
+    assert edited.status_code == 200, edited.text
+    goals["tech"] = edited.json()
+    subjects = [f"empire:goals:goal:{g['id']}" for g in goals.values()]
+    # as if written before the producer: nothing queued yet
+    harness.superuser(
+        "DELETE FROM goals.outbox WHERE subject = ANY(%s) RETURNING id", (subjects,)
+    )
+    with (
+        harness.cluster.connect(harness.cell.role("migrator")) as conn,
+        conn.transaction(),
+    ):
+        conn.execute(BACKFILL.read_text(encoding="utf-8"))
+    for category, goal in goals.items():
+        events = harness.superuser(
+            "SELECT type, payload FROM goals.outbox WHERE subject = %s ORDER BY occurred_at",
+            (f"empire:goals:goal:{goal['id']}",),
+        )
+        assert [t for t, _ in events] == ["goals.goal.updated", "goals.goal.linked"]
+        assert events[0][1] == {
+            "title": goal["title"],
+            "status": goal["status"],
+            "type": goal["type"],
+            "category": category,
+            "domain": "career",
+            "version": goal["version"],
+            "deleted": False,
+        }
+        assert events[1][1] == {
+            "relation": "in-domain",
+            "mode": "replace",
+            "targets": link.targets(category),
+            "set_version": goal["version"],
+            "version": goal["version"],
+        }
+    assert goals["tech"]["version"] == 2
+    forced = harness.superuser(
+        "SELECT relforcerowsecurity FROM pg_class"
+        " WHERE oid IN ('goals.goals'::regclass, 'goals.outbox'::regclass)"
+    )
+    assert all(force for (force,) in forced)
